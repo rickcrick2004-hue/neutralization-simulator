@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <!-- iPadでのピンチアウト・ピンチインによる拡大縮小を許可するviewport設定 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中3理科：中和反応とイオン（電離・中和・白い沈殿）</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700;900&display=swap');
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            /* タブレットでのテキスト誤選択を防ぎつつピンチズームは許可 */
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* パターン選択ボタンのアニメーション */
+        .pattern-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .pattern-btn:active {
+            transform: scale(0.96);
+        }
+        .pattern-btn.active {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2), 0 4px 6px -2px rgba(79, 70, 229, 0.1);
+            border-width: 3px;
+            border-color: #4f46e5;
+            background-color: #eef2ff;
+        }
+
+        /* アクションボタンの立体感 */
+        .action-btn {
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.22);
+        }
+        .action-btn:active:not(:disabled) {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.22);
+        }
+        .action-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* 化学式の上付き・下付き文字の調整 */
+        sub {
+            font-size: 0.72em;
+            vertical-align: -0.22em;
+        }
+        sup {
+            font-size: 0.72em;
+            vertical-align: 0.38em;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-2 md:p-3.5 gap-2.5 max-w-[1440px] mx-auto">
+
+    <!-- 1. 上部：5つの中和反応パターンを横に並べた選択ボタンエリア（プルダウン不使用） -->
+    <header class="bg-white rounded-2xl shadow-md p-2.5 border border-slate-200">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
+            <div class="flex items-center gap-2">
+                <span class="bg-indigo-600 text-white text-xs md:text-sm font-black px-2.5 py-1 rounded-lg">STEP 1</span>
+                <h1 class="text-sm md:text-lg font-black text-slate-800">5つの中和反応から組み合わせを選ぼう（酸・アルカリどちらからでも入れられます）</h1>
+            </div>
+            <div class="flex items-center gap-3 text-xs md:text-sm font-bold">
+                <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 rounded-full bg-red-600 border-2 border-white shadow"></span>水素イオン(H<sup>+</sup>)</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow"></span>水酸化物イオン(OH<sup>-</sup>)</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 rounded-full bg-sky-300 border-2 border-white shadow"></span>水分子(H<sub>2</sub>O)</span>
+            </div>
+        </div>
+
+        <!-- 5つのパターン選択ボタン -->
+        <div class="grid grid-cols-5 gap-1.5 md:gap-2" id="patternButtonsContainer">
+            <!-- JSで5種類のボタンを生成 -->
+        </div>
+    </header>
+
+    <!-- 2. メインエリア（iPad横画面向けに左：大きなビーカー、右：操作＆式パネル） -->
+    <main class="flex-1 grid grid-cols-12 gap-3 items-stretch">
+
+        <!-- 左側（7列分）：ビーカーのアニメーション領域 -->
+        <section class="col-span-12 lg:col-span-7 bg-white rounded-2xl shadow-md border border-slate-200 p-3 flex flex-col items-center justify-between relative overflow-hidden">
+            
+            <!-- ビーカー上部の「現在の液性」＆「BTB溶液の色」バッジ -->
+            <div class="w-full flex flex-wrap items-center justify-between gap-2 z-10 px-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- 今何性かを常時大きく表示 -->
+                    <div id="acidityBadge" class="bg-emerald-100 border-2 border-emerald-500 text-emerald-900 px-3.5 py-1.5 rounded-xl text-base md:text-xl font-black flex items-center gap-1.5 shadow-sm transition-colors duration-300">
+                        <span>⚖️</span>
+                        <span id="acidityText">現在の液性：中性</span>
+                    </div>
+
+                    <!-- 反応状況のステータスメッセージ -->
+                    <div id="reactionStatusBadge" class="bg-slate-100 border border-slate-300 text-slate-700 px-3 py-1 rounded-xl text-xs md:text-sm font-bold">
+                        ビーカーには水が入っています
+                    </div>
+                </div>
+
+                <!-- 現在のBTB溶液の色バッジ -->
+                <div id="btbStatusBadge" class="hidden px-3.5 py-1.5 rounded-xl text-sm md:text-lg font-black border-2 shadow-sm transition-colors duration-300">
+                    <!-- JSで更新 -->
+                </div>
+            </div>
+
+            <!-- キャンバス本体 -->
+            <div class="w-full flex-1 flex items-center justify-center my-1 min-h-[370px] md:min-h-[450px] relative">
+                <canvas id="beakerCanvas" class="w-full h-full max-h-[510px] block"></canvas>
+            </div>
+
+            <!-- ビーカー下部のイオン数＆生成物カウンター -->
+            <div class="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 grid grid-cols-5 gap-1 text-center text-xs md:text-sm font-bold">
+                <div class="bg-white rounded-lg p-1.5 border border-red-200 flex flex-col items-center justify-center">
+                    <span class="text-slate-600 text-[11px] md:text-xs">水素イオン <b class="text-red-600">H<sup>+</sup></b></span>
+                    <div><span id="countH" class="text-lg md:text-2xl font-black text-red-600">0</span><span class="text-xs ml-0.5">個</span></div>
+                </div>
+                <div class="bg-white rounded-lg p-1.5 border border-blue-200 flex flex-col items-center justify-center">
+                    <span class="text-slate-600 text-[11px] md:text-xs">水酸化物イオン <b class="text-blue-600">OH<sup>-</sup></b></span>
+                    <div><span id="countOH" class="text-lg md:text-2xl font-black text-blue-600">0</span><span class="text-xs ml-0.5">個</span></div>
+                </div>
+                <div class="bg-white rounded-lg p-1.5 border border-slate-200 flex flex-col items-center justify-center">
+                    <span class="text-slate-600 text-[11px] md:text-xs">その他のイオン</span>
+                    <div><span id="countOther" class="text-lg md:text-2xl font-black text-slate-700">0</span><span class="text-xs ml-0.5">個</span></div>
+                </div>
+                <div class="bg-white rounded-lg p-1.5 border border-sky-200 flex flex-col items-center justify-center">
+                    <span class="text-slate-600 text-[11px] md:text-xs">中和でできた<b class="text-sky-600">水(H<sub>2</sub>O)</b></span>
+                    <div><span id="countWater" class="text-lg md:text-2xl font-black text-sky-600">0</span><span class="text-xs ml-0.5">個</span></div>
+                </div>
+                <div class="bg-white rounded-lg p-1.5 border border-slate-300 flex flex-col items-center justify-center">
+                    <span class="text-slate-600 text-[11px] md:text-xs">底にたまった<b class="text-slate-800">白い沈殿</b></span>
+                    <div><span id="countPrecip" class="text-lg md:text-2xl font-black text-slate-800">0</span><span class="text-xs ml-0.5">個</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右側（5列分）：1個ずつ出す操作パネル＆電離式・中和反応式パネル -->
+        <section class="col-span-12 lg:col-span-5 flex flex-col gap-2.5 justify-between">
+
+            <!-- STEP 2: 酸・アルカリを1個ずつビーカーの上に出すパネル -->
+            <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-3.5 flex flex-col gap-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-amber-500 text-white text-xs md:text-sm font-black px-2.5 py-1 rounded-lg">STEP 2</span>
+                        <h2 class="text-sm md:text-base font-black text-slate-800">酸やアルカリを1個ずつ出して水に入れよう</h2>
+                    </div>
+                </div>
+
+                <p class="text-xs text-slate-600 font-bold leading-relaxed">
+                    下のボタンを押すと、ビーカーの上に分子が<b>1個</b>現れます。<br>
+                    ビーカーの上の分子をタップすると水に入り、<b>電離 → 引き寄せ → 中和</b>が進みます。
+                </p>
+
+                <!-- 酸を1個出すボタン ＆ アルカリを1個出すボタン（順番自由・何回でも追加可能） -->
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button id="btnSpawnAcid" class="action-btn bg-rose-500 hover:bg-rose-600 text-white font-black py-3 px-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 border-2 border-rose-600">
+                        <span class="text-xs bg-black/20 px-2 py-0.5 rounded-full">酸性を1個追加</span>
+                        <span id="btnSpawnAcidName" class="text-sm md:text-base mt-0.5">塩酸 (HCl)</span>
+                        <span class="text-[11px] text-rose-100 font-bold">をビーカーの上に出す</span>
+                    </button>
+
+                    <button id="btnSpawnAlkali" class="action-btn bg-blue-600 hover:bg-blue-700 text-white font-black py-3 px-2.5 rounded-xl flex flex-col items-center justify-center gap-0.5 border-2 border-blue-700">
+                        <span class="text-xs bg-black/20 px-2 py-0.5 rounded-full">アルカリ性を1個追加</span>
+                        <span id="btnSpawnAlkaliName" class="text-sm md:text-base mt-0.5">水酸化ナトリウム</span>
+                        <span class="text-[11px] text-blue-100 font-bold">をビーカーの上に出す</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: タップで表示される「電離の式」と「中和の化学反応式」 -->
+            <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-3.5 flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-indigo-600 text-white text-xs md:text-sm font-black px-2.5 py-1 rounded-lg">STEP 3</span>
+                        <h2 class="text-sm md:text-base font-black text-slate-800">電離の式・中和の反応式（タップで表示）</h2>
+                    </div>
+                </div>
+
+                <!-- ① 電離の式ボックス（タップで表示/非表示） -->
+                <div id="dissociationCard" class="bg-slate-800 hover:bg-slate-700 cursor-pointer transition-colors text-white rounded-xl p-2.5 text-center flex flex-col items-center justify-center min-h-[78px] shadow-inner select-none">
+                    <div class="text-[11px] text-slate-300 font-bold mb-0.5 flex items-center gap-1">
+                        <span>⚡ 酸とアルカリの電離の式（タップで表示 / 非表示）</span>
+                    </div>
+                    <div id="dissociationEquationDisplay" class="text-sm md:text-lg font-black tracking-wide leading-snug">
+                        <!-- JSで更新 -->
+                    </div>
+                </div>
+
+                <!-- ② 中和の反応式ボックス（タップで表示/非表示） -->
+                <div id="neutralizationCard" class="bg-slate-800 hover:bg-slate-700 cursor-pointer transition-colors text-white rounded-xl p-2.5 text-center flex flex-col items-center justify-center min-h-[86px] shadow-inner select-none">
+                    <div class="text-[11px] text-slate-300 font-bold mb-0.5 flex items-center gap-1">
+                        <span>💧 中和の化学反応式（タップで表示 / 非表示）</span>
+                    </div>
+                    <div id="neutralizationEquationDisplay" class="text-sm md:text-lg font-black tracking-wide leading-snug">
+                        <!-- JSで更新 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 4: BTB溶液＆リセットパネル -->
+            <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-3.5 flex flex-col gap-2.5">
+                <div class="flex items-center gap-2">
+                    <span class="bg-emerald-600 text-white text-xs md:text-sm font-black px-2.5 py-1 rounded-lg">STEP 4</span>
+                    <h2 class="text-sm md:text-base font-black text-slate-800">BTB溶液で色の変化を確かめよう</h2>
+                </div>
+
+                <!-- BTB溶液ボタン -->
+                <button id="btnBTB" class="action-btn w-full bg-gradient-to-r from-yellow-500 via-green-500 to-blue-600 text-white font-black text-base md:text-lg py-2.5 px-4 rounded-xl flex items-center justify-between shadow-md border-2 border-white">
+                    <span class="flex items-center gap-1.5">
+                        <span class="text-xl">💧</span>
+                        <span>BTB溶液を加える</span>
+                    </span>
+                    <span class="text-xs bg-black/25 px-2.5 py-1 rounded-lg font-bold">
+                        酸:黄 / 中:緑 / アルカリ:青
+                    </span>
+                </button>
+
+                <!-- 解説メッセージボックス -->
+                <div id="guideSummaryBox" class="bg-slate-50 border border-slate-200 rounded-xl p-2 text-center text-xs md:text-sm font-bold text-slate-700">
+                    酸やアルカリを入れると、H<sup>+</sup>とOH<sup>-</sup>の数によって液性とBTB溶液の色がリアルタイムに変化します。
+                </div>
+
+                <!-- リセットボタン群 -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btnClearBTB" class="action-btn bg-slate-200 hover:bg-slate-300 text-slate-800 font-black text-xs md:text-sm py-2 px-3 rounded-xl">
+                        BTBの色だけ消す
+                    </button>
+                    <button id="btnResetAll" class="action-btn bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 font-black text-xs md:text-sm py-2 px-3 rounded-xl">
+                        🔄 水だけに戻す（リセット）
+                    </button>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        /**
+         * 酸・アルカリの個別物質データ定義
+         * 1個の分子が電離したときに生じるイオンの構成を定義
+         */
+        const SUBSTANCES = {
+            hcl: {
+                id: 'hcl',
+                name: '塩酸',
+                subName: '(塩化水素)',
+                formulaHtml: 'HCl',
+                formulaText: 'HCl',
+                role: 'acid',
+                equationHtml: 'HCl → <span class="text-red-400">H<sup>+</sup></span> + Cl<sup>-</sup>',
+                moleculeParts: [
+                    { label: 'H', charge: '+', type: 'H', offsetX: -20, offsetY: 0, radius: 21 },
+                    { label: 'Cl', charge: '-', type: 'anion', offsetX: 18, offsetY: 0, radius: 26 }
+                ]
+            },
+            hno3: {
+                id: 'hno3',
+                name: '硝酸',
+                subName: '',
+                formulaHtml: 'HNO<sub>3</sub>',
+                formulaText: 'HNO₃',
+                role: 'acid',
+                equationHtml: 'HNO<sub>3</sub> → <span class="text-red-400">H<sup>+</sup></span> + NO<sub>3</sub><sup>-</sup>',
+                moleculeParts: [
+                    { label: 'H', charge: '+', type: 'H', offsetX: -22, offsetY: 0, radius: 21 },
+                    { label: 'NO₃', charge: '-', type: 'anion', offsetX: 18, offsetY: 0, radius: 28 }
+                ]
+            },
+            h2so4: {
+                id: 'h2so4',
+                name: '硫酸',
+                subName: '',
+                formulaHtml: 'H<sub>2</sub>SO<sub>4</sub>',
+                formulaText: 'H₂SO₄',
+                role: 'acid',
+                equationHtml: 'H<sub>2</sub>SO<sub>4</sub> → <span class="text-red-400">2H<sup>+</sup></span> + SO<sub>4</sub><sup>2-</sup>',
+                moleculeParts: [
+                    { label: 'H', charge: '+', type: 'H', offsetX: -32, offsetY: -12, radius: 21 },
+                    { label: 'SO₄', charge: '2-', type: 'anion', offsetX: 0, offsetY: 5, radius: 30 },
+                    { label: 'H', charge: '+', type: 'H', offsetX: 32, offsetY: -12, radius: 21 }
+                ]
+            },
+            h2co3: {
+                id: 'h2co3',
+                name: '炭酸水',
+                subName: '(炭酸)',
+                formulaHtml: 'H<sub>2</sub>CO<sub>3</sub>',
+                formulaText: 'H₂CO₃',
+                role: 'acid',
+                equationHtml: 'H<sub>2</sub>CO<sub>3</sub> → <span class="text-red-400">2H<sup>+</sup></span> + CO<sub>3</sub><sup>2-</sup>',
+                moleculeParts: [
+                    { label: 'H', charge: '+', type: 'H', offsetX: -32, offsetY: -12, radius: 21 },
+                    { label: 'CO₃', charge: '2-', type: 'anion', offsetX: 0, offsetY: 5, radius: 30 },
+                    { label: 'H', charge: '+', type: 'H', offsetX: 32, offsetY: -12, radius: 21 }
+                ]
+            },
+            naoh: {
+                id: 'naoh',
+                name: '水酸化ナトリウム',
+                subName: '水溶液',
+                formulaHtml: 'NaOH',
+                formulaText: 'NaOH',
+                role: 'alkali',
+                equationHtml: 'NaOH → Na<sup>+</sup> + <span class="text-sky-400">OH<sup>-</sup></span>',
+                moleculeParts: [
+                    { label: 'Na', charge: '+', type: 'cation', offsetX: -20, offsetY: 0, radius: 24 },
+                    { label: 'OH', charge: '-', type: 'OH', offsetX: 20, offsetY: 0, radius: 25 }
+                ]
+            },
+            koh: {
+                id: 'koh',
+                name: '水酸化カリウム',
+                subName: '水溶液',
+                formulaHtml: 'KOH',
+                formulaText: 'KOH',
+                role: 'alkali',
+                equationHtml: 'KOH → K<sup>+</sup> + <span class="text-sky-400">OH<sup>-</sup></span>',
+                moleculeParts: [
+                    { label: 'K', charge: '+', type: 'cation', offsetX: -20, offsetY: 0, radius: 25 },
+                    { label: 'OH', charge: '-', type: 'OH', offsetX: 20, offsetY: 0, radius: 25 }
+                ]
+            },
+            baoh2: {
+                id: 'baoh2',
+                name: '水酸化バリウム',
+                subName: '水溶液',
+                formulaHtml: 'Ba(OH)<sub>2</sub>',
+                formulaText: 'Ba(OH)₂',
+                role: 'alkali',
+                equationHtml: 'Ba(OH)<sub>2</sub> → Ba<sup>2+</sup> + <span class="text-sky-400">2OH<sup>-</sup></span>',
+                moleculeParts: [
+                    { label: 'OH', charge: '-', type: 'OH', offsetX: -33, offsetY: -10, radius: 25 },
+                    { label: 'Ba', charge: '2+', type: 'cation', offsetX: 0, offsetY: 5, radius: 29 },
+                    { label: 'OH', charge: '-', type: 'OH', offsetX: 33, offsetY: -10, radius: 25 }
+                ]
+            },
+            caoh2: {
+                id: 'caoh2',
+                name: '石灰水',
+                subName: '(水酸化カルシウム)',
+                formulaHtml: 'Ca(OH)<sub>2</sub>',
+                formulaText: 'Ca(OH)₂',
+                role: 'alkali',
+                equationHtml: 'Ca(OH)<sub>2</sub> → Ca<sup>2+</sup> + <span class="text-sky-400">2OH<sup>-</sup></span>',
+                moleculeParts: [
+                    { label: 'OH', charge: '-', type: 'OH', offsetX: -32, offsetY: -10, radius: 25 },
+                    { label: 'Ca', charge: '2+', type: 'cation', offsetX: 0, offsetY: 5, radius: 28 },
+                    { label: 'OH', charge: '-', type: 'OH', offsetX: 32, offsetY: -10, radius: 25 }
+                ]
+            }
+        };
+
+        /**
+         * 5つの中和反応パターン定義
+         */
+        const REACTION_PATTERNS = [
+            {
+                id: 1,
+                shortTitle: '① 塩酸 ＋ 水酸化ナトリウム',
+                subTitle: '塩化ナトリウム(NaCl)と水',
+                acidKey: 'hcl',
+                alkaliKey: 'naoh',
+                hasPrecipitate: false,
+                precipInfo: null,
+                reactionEqHtml: 'HCl + NaOH → NaCl + <span class="text-sky-300">H<sub>2</sub>O</span>',
+                ionReactionEqHtml: '<span class="text-red-400">H<sup>+</sup></span> + <span class="text-sky-400">OH<sup>-</sup></span> → <span class="text-sky-200">H<sub>2</sub>O</span> （Na<sup>+</sup>とCl<sup>-</sup>は水中に残る）'
+            },
+            {
+                id: 2,
+                shortTitle: '② 硝酸 ＋ 水酸化カリウム',
+                subTitle: '硝酸カリウム(KNO₃)と水',
+                acidKey: 'hno3',
+                alkaliKey: 'koh',
+                hasPrecipitate: false,
+                precipInfo: null,
+                reactionEqHtml: 'HNO<sub>3</sub> + KOH → KNO<sub>3</sub> + <span class="text-sky-300">H<sub>2</sub>O</span>',
+                ionReactionEqHtml: '<span class="text-red-400">H<sup>+</sup></span> + <span class="text-sky-400">OH<sup>-</sup></span> → <span class="text-sky-200">H<sub>2</sub>O</span> （K<sup>+</sup>とNO<sub>3</sub><sup>-</sup>は水中に残る）'
+            },
+            {
+                id: 3,
+                shortTitle: '③ 硫酸 ＋ 水酸化ナトリウム',
+                subTitle: '硫酸ナトリウム(Na₂SO₄)と水',
+                acidKey: 'h2so4',
+                alkaliKey: 'naoh',
+                hasPrecipitate: false,
+                precipInfo: null,
+                reactionEqHtml: 'H<sub>2</sub>SO<sub>4</sub> + 2NaOH → Na<sub>2</sub>SO<sub>4</sub> + <span class="text-sky-300">2H<sub>2</sub>O</span>',
+                ionReactionEqHtml: '<span class="text-red-400">H<sup>+</sup></span> + <span class="text-sky-400">OH<sup>-</sup></span> → <span class="text-sky-200">H<sub>2</sub>O</span> （H<sub>2</sub>SO<sub>4</sub> 1個を中和するのにNaOHは2個必要）'
+            },
+            {
+                id: 4,
+                shortTitle: '④ 硫酸 ＋ 水酸化バリウム',
+                subTitle: '白い沈殿 (硫酸バリウム BaSO₄)',
+                acidKey: 'h2so4',
+                alkaliKey: 'baoh2',
+                hasPrecipitate: true,
+                precipInfo: {
+                    cationLabel: 'Ba',
+                    anionLabel: 'SO₄',
+                    formulaText: 'BaSO₄',
+                    jpName: '硫酸バリウム'
+                },
+                reactionEqHtml: 'H<sub>2</sub>SO<sub>4</sub> + Ba(OH)<sub>2</sub> → <span class="text-amber-200 underline">BaSO<sub>4</sub>↓(白い沈殿)</span> + <span class="text-sky-300">2H<sub>2</sub>O</span>',
+                ionReactionEqHtml: '<span class="text-red-400">2H<sup>+</sup></span> + <span class="text-sky-400">2OH<sup>-</sup></span> → 2H<sub>2</sub>O ／ Ba<sup>2+</sup> + SO<sub>4</sub><sup>2-</sup> → <span class="text-amber-200">BaSO<sub>4</sub>↓</span>'
+            },
+            {
+                id: 5,
+                shortTitle: '⑤ 炭酸水 ＋ 石灰水',
+                subTitle: '白い沈殿 (炭酸カルシウム CaCO₃)',
+                acidKey: 'h2co3',
+                alkaliKey: 'caoh2',
+                hasPrecipitate: true,
+                precipInfo: {
+                    cationLabel: 'Ca',
+                    anionLabel: 'CO₃',
+                    formulaText: 'CaCO₃',
+                    jpName: '炭酸カルシウム'
+                },
+                reactionEqHtml: 'H<sub>2</sub>CO<sub>3</sub> + Ca(OH)<sub>2</sub> → <span class="text-amber-200 underline">CaCO<sub>3</sub>↓(白い沈殿)</span> + <span class="text-sky-300">2H<sub>2</sub>O</span>',
+                ionReactionEqHtml: '<span class="text-red-400">2H<sup>+</sup></span> + <span class="text-sky-400">2OH<sup>-</sup></span> → 2H<sub>2</sub>O ／ Ca<sup>2+</sup> + CO<sub>3</sub><sup>2-</sup> → <span class="text-amber-200">CaCO<sub>3</sub>↓</span>'
+            }
+        ];
+
+        // アプリの状態管理
+        let currentPattern = REACTION_PATTERNS[0];
+        let isBTBAdded = false;
+        let showDissociationEq = false;
+        let showNeutralizationEq = false;
+
+        // 生成された水分子・沈殿の累計カウント
+        let createdWaterCount = 0;
+        let createdPrecipCount = 0;
+
+        // アニメーション用オブジェクト配列
+        let fallingMolecules = [];   // ビーカー上で待機中('waiting') -> 落下中('falling') -> 電離直前('shaking')
+        let floatingParticles = [];  // 水中を泳ぐイオン ('free' | 'attracting_water' | 'attracting_precip')
+        let waterMolecules = [];     // 中和で生じた水分子 H2O（しばらく表示されてから水に溶け込む）
+        let precipitates = [];       // 結びついたあとビーカーの底へゆっくり落ちて積もる白い沈殿
+        let splashRipples = [];      // 水面波紋や「電離！」「水(H₂O)！」「白い沈殿！」のエフェクト
+        let indicatorDrops = [];     // BTB溶液のしずく
+
+        const canvas = document.getElementById('beakerCanvas');
+        const ctx = canvas.getContext('2d');
+        let beakerRect = { x: 0, y: 0, w: 0, h: 0, waterTop: 0 };
+
+        /**
+         * 1. 上部の5つのパターン選択ボタンを生成
+         */
+        function initPatternButtons() {
+            const container = document.getElementById('patternButtonsContainer');
+            container.innerHTML = '';
+
+            REACTION_PATTERNS.forEach(pat => {
+                const acid = SUBSTANCES[pat.acidKey];
+                const alkali = SUBSTANCES[pat.alkaliKey];
+
+                const btn = document.createElement('button');
+                btn.id = `pat-btn-${pat.id}`;
+                btn.className = `pattern-btn flex flex-col items-center justify-between p-1.5 md:p-2 rounded-xl border-2 border-slate-300 bg-slate-50 hover:bg-white text-slate-800 shadow-sm h-full`;
+
+                btn.innerHTML = `
+                    <div class="text-[11px] md:text-sm font-black leading-tight text-center text-slate-800">
+                        ${pat.shortTitle}
+                    </div>
+                    <div class="text-[10px] md:text-xs font-bold text-slate-500 mt-0.5">
+                        ${pat.hasPrecipitate ? '⚪ 白い沈殿ができる' : '💧 沈殿なし（イオンが残る）'}
+                    </div>
+                    <div class="text-xs md:text-sm font-black text-indigo-950 bg-white px-2 py-0.5 rounded-lg border border-slate-200 mt-1 w-full text-center">
+                        ${acid.formulaHtml} ＋ ${alkali.formulaHtml}
+                    </div>
+                `;
+
+                btn.addEventListener('click', () => selectPattern(pat));
+                container.appendChild(btn);
+            });
+        }
+
+        /**
+         * パターンを切り替えたときの処理
+         */
+        function selectPattern(pat) {
+            currentPattern = pat;
+
+            document.querySelectorAll('.pattern-btn').forEach(b => {
+                b.classList.remove('active');
+            });
+            const activeBtn = document.getElementById(`pat-btn-${pat.id}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // パターン変更時は式を伏せてビーカーを初期状態にリセット
+            showDissociationEq = false;
+            showNeutralizationEq = false;
+            resetBeaker();
+        }
+
+        /**
+         * ビーカー内を水だけの状態にリセット
+         */
+        function resetBeaker() {
+            isBTBAdded = false;
+            createdWaterCount = 0;
+            createdPrecipCount = 0;
+            fallingMolecules = [];
+            floatingParticles = [];
+            waterMolecules = [];
+            precipitates = [];
+            splashRipples = [];
+            indicatorDrops = [];
+            updateUI();
+        }
+
+        /**
+         * ビーカーの上あたりに待機状態の分子（酸またはアルカリ）を1個出現させる
+         */
+        function spawnWaitingMolecule(substance) {
+            // 既にビーカー上で待機している分子が3個以上ある場合は、一番古いものを自動的に落下させる
+            const waitingList = fallingMolecules.filter(m => m.state === 'waiting');
+            if (waitingList.length >= 3) {
+                waitingList[0].state = 'falling';
+            }
+
+            // 空いている横位置（左・中央・右）を探す
+            const candidateOffsets = substance.role === 'acid' ? [-0.25, 0, 0.25] : [0.25, 0, -0.25];
+            let chosenOffset = 0;
+            for (const cand of candidateOffsets) {
+                const candX = beakerRect.x + beakerRect.w * (0.5 + cand);
+                const isOccupied = waitingList.some(m => Math.abs(m.x - candX) < 95);
+                if (!isOccupied) {
+                    chosenOffset = cand;
+                    break;
+                }
+            }
+
+            const startX = beakerRect.x + beakerRect.w * (0.5 + chosenOffset);
+            const waitY = Math.max(52, beakerRect.y - 28);
+            const targetDissolveY = beakerRect.waterTop + beakerRect.h * (0.22 + Math.random() * 0.14);
+
+            fallingMolecules.push({
+                substance: substance,
+                ratioOffset: chosenOffset,
+                x: startX,
+                y: waitY,
+                baseY: waitY,
+                vy: 3.0,
+                targetY: targetDissolveY,
+                state: 'waiting', // 'waiting' -> 'falling' -> 'shaking'
+                floatPhase: Math.random() * Math.PI * 2,
+                shakeTimer: 0,
+                enteredWater: false
+            });
+
+            updateUI();
+        }
+
+        /**
+         * 水中で分子が電離する処理
+         * 電離後、すぐには中和せず一定時間(spawnWait)は水中で電離した姿を見せる
+         */
+        function dissociateMolecule(mol) {
+            const sub = mol.substance;
+
+            // 電離エフェクト
+            splashRipples.push({
+                x: mol.x,
+                y: mol.y,
+                radius: 14,
+                maxRadius: 80,
+                color: 'rgba(250, 204, 21, 0.95)',
+                text: `${sub.formulaText}が電離！`,
+                alpha: 1.0
+            });
+
+            // 水中の遊離イオンが多すぎる場合は古いペアの観戦イオンを整理して見やすさを保つ
+            const freeSpectators = floatingParticles.filter(p => p.type !== 'H' && p.type !== 'OH' && p.state === 'free');
+            if (freeSpectators.length > 18) {
+                const idx = floatingParticles.indexOf(freeSpectators[0]);
+                if (idx !== -1) floatingParticles.splice(idx, 1);
+            }
+
+            // 構成イオンをそれぞれ生成
+            sub.moleculeParts.forEach((part, index) => {
+                const dx = part.offsetX || (index === 0 ? -1 : 1);
+                const dy = part.offsetY || (Math.random() - 0.5) * 10;
+                const len = Math.hypot(dx, dy) || 1;
+                const vx = (dx / len) * 3.4 + (Math.random() - 0.5) * 0.8;
+                const vy = (dy / len) * 2.8 + (Math.random() - 0.5) * 0.8;
+
+                // 電離してから約1.8秒（105フレーム）は引き寄せを開始せず、電離した様子をしっかり見せる
+                const waitFrames = (part.type === 'H' || part.type === 'OH') ? 100 : 120;
+
+                floatingParticles.push({
+                    label: part.label,
+                    charge: part.charge,
+                    type: part.type, // 'H' | 'OH' | 'cation' | 'anion'
+                    x: mol.x + part.offsetX * 0.6,
+                    y: mol.y + part.offsetY * 0.6,
+                    vx: vx,
+                    vy: vy,
+                    radius: part.radius,
+                    scale: 1.25,
+                    state: 'free', // 'free' | 'attracting_water' | 'attracting_precip' | 'merged'
+                    spawnWait: waitFrames,
+                    partner: null
+                });
+            });
+
+            updateUI();
+        }
+
+        /**
+         * 現在のH+とOH-の数から液性（'acid' | 'alkaline' | 'neutral'）を判定
+         * （水中に存在するH+とOH-の総数で比較）
+         */
+        function getCurrentAcidity() {
+            let hCount = 0;
+            let ohCount = 0;
+            floatingParticles.forEach(p => {
+                if (p.state !== 'merged') {
+                    if (p.type === 'H') hCount++;
+                    else if (p.type === 'OH') ohCount++;
+                }
+            });
+
+            if (hCount > ohCount) return { state: 'acid', hCount, ohCount };
+            if (ohCount > hCount) return { state: 'alkaline', hCount, ohCount };
+            return { state: 'neutral', hCount, ohCount };
+        }
+
+        /**
+         * 時間経過後にH+とOH-、および沈殿ペアをゆっくり引き寄せ合わせるペアリング処理
+         */
+        function checkAndPairReactions() {
+            // 1. H+ と OH- の中和ペアリング（電離後の観察時間 spawnWait が終わったもの同士）
+            const readyH = floatingParticles.filter(p => p.type === 'H' && p.state === 'free' && p.spawnWait <= 0);
+            const readyOH = floatingParticles.filter(p => p.type === 'OH' && p.state === 'free' && p.spawnWait <= 0);
+
+            while (readyH.length > 0 && readyOH.length > 0) {
+                const hIon = readyH.shift();
+                // 一番近いOH-を探す
+                let bestIdx = 0;
+                let bestDist = Infinity;
+                for (let i = 0; i < readyOH.length; i++) {
+                    const d = Math.hypot(readyOH[i].x - hIon.x, readyOH[i].y - hIon.y);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        bestIdx = i;
+                    }
+                }
+                const ohIon = readyOH.splice(bestIdx, 1)[0];
+
+                hIon.state = 'attracting_water';
+                ohIon.state = 'attracting_water';
+                hIon.partner = ohIon;
+                ohIon.partner = hIon;
+            }
+
+            // 2. 白い沈殿が生じるパターン（④ BaSO4、⑤ CaCO3）のペアリング
+            if (currentPattern.hasPrecipitate && currentPattern.precipInfo) {
+                const { cationLabel, anionLabel } = currentPattern.precipInfo;
+                const readyCat = floatingParticles.filter(p => p.label === cationLabel && p.state === 'free' && p.spawnWait <= 0);
+                const readyAni = floatingParticles.filter(p => p.label === anionLabel && p.state === 'free' && p.spawnWait <= 0);
+
+                while (readyCat.length > 0 && readyAni.length > 0) {
+                    const catIon = readyCat.shift();
+                    let bestIdx = 0;
+                    let bestDist = Infinity;
+                    for (let i = 0; i < readyAni.length; i++) {
+                        const d = Math.hypot(readyAni[i].x - catIon.x, readyAni[i].y - catIon.y);
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestIdx = i;
+                        }
+                    }
+                    const aniIon = readyAni.splice(bestIdx, 1)[0];
+
+                    catIon.state = 'attracting_precip';
+                    aniIon.state = 'attracting_precip';
+                    catIon.partner = aniIon;
+                    aniIon.partner = catIon;
+                }
+            }
+        }
+
+        /**
+         * 画面のバッジ・カウンター・ボタン・式表示を更新
+         */
+        function updateUI() {
+            const acid = SUBSTANCES[currentPattern.acidKey];
+            const alkali = SUBSTANCES[currentPattern.alkaliKey];
+
+            // STEP 2 ボタンのラベル更新
+            document.getElementById('btnSpawnAcidName').innerHTML = `${acid.name} (${acid.formulaHtml})`;
+            document.getElementById('btnSpawnAlkaliName').innerHTML = `${alkali.name} (${alkali.formulaHtml})`;
+
+            // イオン数カウント
+            const { state: acidity, hCount, ohCount } = getCurrentAcidity();
+            const otherCount = floatingParticles.filter(p => p.state !== 'merged' && p.type !== 'H' && p.type !== 'OH').length;
+
+            document.getElementById('countH').textContent = hCount;
+            document.getElementById('countOH').textContent = ohCount;
+            document.getElementById('countOther').textContent = otherCount;
+            document.getElementById('countWater').textContent = createdWaterCount;
+            document.getElementById('countPrecip').textContent = createdPrecipCount;
+
+            // 現在の液性バッジの更新
+            const acidityBadge = document.getElementById('acidityBadge');
+            const acidityText = document.getElementById('acidityText');
+            if (acidity === 'acid') {
+                acidityBadge.className = 'bg-red-100 border-2 border-red-500 text-red-900 px-3.5 py-1.5 rounded-xl text-base md:text-xl font-black flex items-center gap-1.5 shadow-sm transition-colors duration-300';
+                acidityText.innerHTML = `現在の液性：酸性 <span class="text-xs md:text-sm font-bold">(H<sup>+</sup>が多い)</span>`;
+            } else if (acidity === 'alkaline') {
+                acidityBadge.className = 'bg-blue-100 border-2 border-blue-500 text-blue-900 px-3.5 py-1.5 rounded-xl text-base md:text-xl font-black flex items-center gap-1.5 shadow-sm transition-colors duration-300';
+                acidityText.innerHTML = `現在の液性：アルカリ性 <span class="text-xs md:text-sm font-bold">(OH<sup>-</sup>が多い)</span>`;
+            } else {
+                acidityBadge.className = 'bg-emerald-100 border-2 border-emerald-500 text-emerald-900 px-3.5 py-1.5 rounded-xl text-base md:text-xl font-black flex items-center gap-1.5 shadow-sm transition-colors duration-300';
+                if (createdWaterCount > 0 || otherCount > 0) {
+                    acidityText.innerHTML = `現在の液性：中性 <span class="text-xs md:text-sm font-bold">(ちょうど中和！)</span>`;
+                } else {
+                    acidityText.innerHTML = `現在の液性：中性 <span class="text-xs md:text-sm font-bold">(ただの水)</span>`;
+                }
+            }
+
+            // 反応進行ステータスの更新
+            const statusBadge = document.getElementById('reactionStatusBadge');
+            const isAttractingWater = floatingParticles.some(p => p.state === 'attracting_water');
+            const isAttractingPrecip = floatingParticles.some(p => p.state === 'attracting_precip');
+            const hasWaiting = fallingMolecules.some(m => m.state === 'waiting');
+
+            if (isAttractingWater && isAttractingPrecip) {
+                statusBadge.className = 'bg-amber-100 border border-amber-400 text-amber-900 px-3 py-1 rounded-xl text-xs md:text-sm font-black animate-pulse';
+                statusBadge.innerHTML = '🧲 H⁺とOH⁻、沈殿のイオンが引き寄せ合っています…';
+            } else if (isAttractingWater) {
+                statusBadge.className = 'bg-sky-100 border border-sky-400 text-sky-900 px-3 py-1 rounded-xl text-xs md:text-sm font-black animate-pulse';
+                statusBadge.innerHTML = '🧲 H⁺ と OH⁻ が引き寄せ合って水(H₂O)になっています…';
+            } else if (isAttractingPrecip) {
+                statusBadge.className = 'bg-amber-100 border border-amber-400 text-amber-900 px-3 py-1 rounded-xl text-xs md:text-sm font-black animate-pulse';
+                statusBadge.innerHTML = '⚪ イオンが結びついて白い沈殿ができています…';
+            } else if (hasWaiting) {
+                statusBadge.className = 'bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1 rounded-xl text-xs md:text-sm font-bold';
+                statusBadge.innerHTML = '👆 ビーカーの上の分子をタップして水に入れよう！';
+            } else if (floatingParticles.length === 0 && createdWaterCount === 0) {
+                statusBadge.className = 'bg-slate-100 border border-slate-300 text-slate-700 px-3 py-1 rounded-xl text-xs md:text-sm font-bold';
+                statusBadge.innerHTML = '右のボタンで酸やアルカリをビーカーの上に出そう';
+            } else {
+                statusBadge.className = 'bg-slate-100 border border-slate-300 text-slate-700 px-3 py-1 rounded-xl text-xs md:text-sm font-bold';
+                statusBadge.innerHTML = 'さらに酸やアルカリを追加して変化を続けられます';
+            }
+
+            // BTB溶液の色バッジと解説の更新
+            const btbBadge = document.getElementById('btbStatusBadge');
+            const guideBox = document.getElementById('guideSummaryBox');
+            if (!isBTBAdded) {
+                btbBadge.className = 'hidden';
+                guideBox.className = 'bg-slate-50 border border-slate-200 rounded-xl p-2 text-center text-xs md:text-sm font-bold text-slate-700';
+                guideBox.innerHTML = '「BTB溶液を加える」を押すと、酸・アルカリ・中性の色の変化がリアルタイムにわかります。';
+            } else {
+                btbBadge.classList.remove('hidden');
+                if (acidity === 'acid') {
+                    btbBadge.className = 'px-3.5 py-1.5 rounded-xl text-sm md:text-lg font-black border-2 bg-yellow-300 border-yellow-500 text-yellow-950 shadow-sm';
+                    btbBadge.textContent = 'BTB溶液：黄色（酸性）';
+                    guideBox.className = 'bg-yellow-50 border-2 border-yellow-400 rounded-xl p-2 text-center text-xs md:text-sm font-bold text-yellow-950';
+                    guideBox.innerHTML = `水中に <b class="text-red-600">H<sup>+</sup> が ${hCount}個</b> 残っているため<b>酸性（黄色）</b>です。アルカリを入れて中和させてみよう！`;
+                } else if (acidity === 'alkaline') {
+                    btbBadge.className = 'px-3.5 py-1.5 rounded-xl text-sm md:text-lg font-black border-2 bg-blue-500 border-blue-700 text-white shadow-sm';
+                    btbBadge.textContent = 'BTB溶液：青色（アルカリ性）';
+                    guideBox.className = 'bg-blue-50 border-2 border-blue-400 rounded-xl p-2 text-center text-xs md:text-sm font-bold text-blue-950';
+                    guideBox.innerHTML = `水中に <b class="text-blue-600">OH<sup>-</sup> が ${ohCount}個</b> 残っているため<b>アルカリ性（青色）</b>です。酸を入れて中和させてみよう！`;
+                } else {
+                    btbBadge.className = 'px-3.5 py-1.5 rounded-xl text-sm md:text-lg font-black border-2 bg-green-500 border-green-700 text-white shadow-sm';
+                    btbBadge.textContent = 'BTB溶液：緑色（中性）';
+                    guideBox.className = 'bg-green-50 border-2 border-green-400 rounded-xl p-2 text-center text-xs md:text-sm font-bold text-green-950';
+                    guideBox.innerHTML = `<b class="text-red-600">H<sup>+</sup></b> も <b class="text-blue-600">OH<sup>-</sup></b> もないため<b>中性（緑色）</b>です！ここから酸やアルカリを追加するとどうなるか試してみよう。`;
+                }
+            }
+
+            // STEP 3: 電離の式・中和の反応式パネルの表示更新
+            const dissocEl = document.getElementById('dissociationEquationDisplay');
+            if (showDissociationEq) {
+                dissocEl.innerHTML = `
+                    <div><span class="text-xs text-rose-300 mr-1">[酸]</span>${acid.equationHtml}</div>
+                    <div class="mt-0.5"><span class="text-xs text-sky-300 mr-1">[アルカリ]</span>${alkali.equationHtml}</div>
+                `;
+            } else {
+                dissocEl.innerHTML = '<span class="text-amber-300 text-sm md:text-base">🔒 タップして電離の式を表示</span>';
+            }
+
+            const neutralEl = document.getElementById('neutralizationEquationDisplay');
+            if (showNeutralizationEq) {
+                neutralEl.innerHTML = `
+                    <div>${currentPattern.reactionEqHtml}</div>
+                    <div class="text-xs md:text-sm text-slate-300 mt-1 font-bold">${currentPattern.ionReactionEqHtml}</div>
+                `;
+            } else {
+                neutralEl.innerHTML = '<span class="text-amber-300 text-sm md:text-base">🔒 タップして中和の反応式を表示</span>';
+            }
+        }
+
+        /**
+         * 水溶液の背景色（BTB溶液と現在の液性の組み合わせ）を取得
+         */
+        function getWaterColors() {
+            const { state: acidity } = getCurrentAcidity();
+
+            if (isBTBAdded) {
+                if (acidity === 'acid') {
+                    return { top: '#fef08a', bottom: '#facc15', surface: '#fde047' };
+                } else if (acidity === 'alkaline') {
+                    return { top: '#93c5fd', bottom: '#3b82f6', surface: '#60a5fa' };
+                } else {
+                    return { top: '#86efac', bottom: '#22c55e', surface: '#4ade80' };
+                }
+            }
+            return { top: '#e0f2fe', bottom: '#bae6fd', surface: '#ceecfe' };
+        }
+
+        /**
+         * キャンバスのリサイズ処理
+         */
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const w = rect.width;
+            const h = rect.height;
+
+            const beakerW = Math.min(w * 0.84, 540);
+            const beakerH = Math.min(h * 0.68, 330);
+            const beakerX = (w - beakerW) / 2;
+            const beakerY = h - beakerH - 12;
+            const waterTop = beakerY + beakerH * 0.14;
+
+            beakerRect = {
+                x: beakerX,
+                y: beakerY,
+                w: beakerW,
+                h: beakerH,
+                waterTop: waterTop
+            };
+
+            // リサイズ時に待機中分子と沈殿の位置を補正
+            fallingMolecules.forEach(mol => {
+                if (mol.state === 'waiting') {
+                    mol.x = beakerRect.x + beakerRect.w * (0.5 + (mol.ratioOffset || 0));
+                    mol.baseY = Math.max(52, beakerRect.y - 28);
+                    mol.y = mol.baseY;
+                    mol.targetY = beakerRect.waterTop + beakerRect.h * 0.26;
+                }
+            });
+            precipitates.forEach(pr => {
+                const maxBottom = beakerRect.y + beakerRect.h - 20;
+                if (pr.settled) pr.y = maxBottom;
+            });
+        }
+
+        /**
+         * 個々のイオン球体を描画
+         */
+        function drawIonSphere(x, y, radius, label, charge, type, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            let gradStart, gradEnd, borderColor;
+            if (type === 'H') {
+                gradStart = '#ff6b6b';
+                gradEnd = '#dc2626';
+                borderColor = '#ffffff';
+            } else if (type === 'OH') {
+                gradStart = '#3b82f6';
+                gradEnd = '#1d4ed8';
+                borderColor = '#ffffff';
+            } else if (type === 'cation') {
+                gradStart = '#94a3b8';
+                gradEnd = '#475569';
+                borderColor = '#f8fafc';
+            } else {
+                gradStart = '#cbd5e1';
+                gradEnd = '#64748b';
+                borderColor = '#f8fafc';
+            }
+
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(-radius * 0.3, -radius * 0.3, radius * 0.1, 0, 0, radius);
+            grad.addColorStop(0, gradStart);
+            grad.addColorStop(1, gradEnd);
+            ctx.fillStyle = grad;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+            ctx.shadowBlur = 5;
+            ctx.fill();
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = borderColor;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+            ctx.shadowBlur = 2;
+
+            const baseFontSize = label.length >= 3 ? Math.round(radius * 0.58) : Math.round(radius * 0.75);
+            ctx.font = `900 ${baseFontSize}px "Noto Sans JP", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const chargeOffset = charge ? radius * 0.15 : 0;
+            ctx.fillText(label, -chargeOffset, 2);
+
+            if (charge) {
+                const chargeFontSize = Math.round(radius * 0.48);
+                ctx.font = `900 ${chargeFontSize}px "Noto Sans JP", sans-serif`;
+                const labelWidth = ctx.measureText(label).width;
+                ctx.fillText(charge, labelWidth * 0.54, -radius * 0.32);
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * 中和によってできた水分子(H2O)を描画（しばらく表示されてから水に溶け込む）
+         */
+        function drawWaterMolecule(wm) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, wm.alpha);
+            ctx.translate(wm.x, wm.y);
+            ctx.scale(wm.scale, wm.scale);
+
+            ctx.beginPath();
+            ctx.arc(0, 0, wm.radius, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(-6, -6, 2, 0, 0, wm.radius);
+            grad.addColorStop(0, '#f0f9ff');
+            grad.addColorStop(1, '#38bdf8');
+            ctx.fillStyle = grad;
+            ctx.shadowColor = 'rgba(14, 165, 233, 0.45)';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+
+            ctx.lineWidth = 3.5;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#0369a1';
+            ctx.font = '900 16px "Noto Sans JP", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('H₂O', 0, -3);
+            ctx.font = '900 10px "Noto Sans JP", sans-serif';
+            ctx.fillText('(水)', 0, 11);
+
+            ctx.restore();
+        }
+
+        /**
+         * 白い沈殿（BaSO4 / CaCO3）を描画（結びついたあと底へゆっくり落ちてたまる）
+         */
+        function drawPrecipitateCrystal(pr) {
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+
+            // 白い結晶カプセル形状
+            ctx.beginPath();
+            ctx.roundRect(-34, -18, 68, 36, 12);
+            const grad = ctx.createLinearGradient(0, -18, 0, 18);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(1, '#e2e8f0');
+            ctx.fillStyle = grad;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+            ctx.shadowBlur = 6;
+            ctx.fill();
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#94a3b8';
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '900 14px "Noto Sans JP", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(pr.formulaText, 0, -4);
+
+            ctx.fillStyle = '#475569';
+            ctx.font = '900 9px "Noto Sans JP", sans-serif';
+            ctx.fillText('白い沈殿', 0, 9);
+
+            ctx.restore();
+        }
+
+        /**
+         * 待機中または落下中（電離前）の分子を描画
+         */
+        function drawFallingMolecule(mol) {
+            ctx.save();
+            let shakeOffsetX = 0;
+            let floatOffsetY = 0;
+
+            if (mol.state === 'shaking') {
+                shakeOffsetX = Math.sin(mol.shakeTimer * 1.8) * 5;
+            } else if (mol.state === 'waiting') {
+                floatOffsetY = Math.sin(mol.floatPhase) * 4;
+            }
+            ctx.translate(mol.x + shakeOffsetX, mol.y + floatOffsetY);
+
+            const isAcid = mol.substance.role === 'acid';
+
+            // 待機中はタップを促す背面ガイド枠
+            if (mol.state === 'waiting') {
+                ctx.beginPath();
+                ctx.roundRect(-62, -42, 124, 84, 40);
+                ctx.fillStyle = isAcid ? 'rgba(254, 226, 226, 0.85)' : 'rgba(219, 234, 254, 0.85)';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = isAcid ? '#e11d48' : '#2563eb';
+                ctx.stroke();
+            }
+
+            // 結合を示すカプセル外枠
+            ctx.beginPath();
+            ctx.roundRect(-54, -35, 108, 70, 34);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+            ctx.fill();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#94a3b8';
+            ctx.stroke();
+
+            // 構成イオンをくっついた状態で描画
+            mol.substance.moleculeParts.forEach(part => {
+                drawIonSphere(part.offsetX * 0.72, part.offsetY * 0.72, part.radius * 0.85, part.label, '', part.type, 1);
+            });
+
+            // 上部の「👆タップで水へ」バッジ
+            if (mol.state === 'waiting') {
+                ctx.beginPath();
+                ctx.roundRect(-60, -65, 120, 23, 11);
+                ctx.fillStyle = isAcid ? '#e11d48' : '#2563eb';
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '900 11px "Noto Sans JP", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`👆タップで水へ (${mol.substance.formulaText})`, 0, -53);
+            } else {
+                ctx.fillStyle = '#1e293b';
+                ctx.font = '900 15px "Noto Sans JP", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(mol.substance.formulaText, 0, -44);
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * メインアニメーションループ
+         */
+        function animate() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const { x: bx, y: by, w: bw, h: bh, waterTop } = beakerRect;
+            const waterH = (by + bh) - waterTop;
+            const colors = getWaterColors();
+
+            // 1. ビーカー内の水の背景描画
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(bx + 4, waterTop, bw - 8, waterH - 4, [0, 0, 24, 24]);
+            const waterGrad = ctx.createLinearGradient(0, waterTop, 0, by + bh);
+            waterGrad.addColorStop(0, colors.top);
+            waterGrad.addColorStop(1, colors.bottom);
+            ctx.fillStyle = waterGrad;
+            ctx.fill();
+            ctx.restore();
+
+            // 水面ハイライト
+            ctx.beginPath();
+            ctx.ellipse(bx + bw / 2, waterTop, (bw - 10) / 2, 10, 0, 0, Math.PI * 2);
+            ctx.fillStyle = colors.surface;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+            ctx.stroke();
+
+            // ビーカーが空のときのガイド表示
+            if (fallingMolecules.length === 0 && floatingParticles.length === 0 && waterMolecules.length === 0 && precipitates.length === 0) {
+                ctx.save();
+                ctx.fillStyle = '#334155';
+                ctx.font = '900 19px "Noto Sans JP", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('右の「STEP 2」から酸またはアルカリを', bx + bw / 2, waterTop + waterH * 0.43);
+                ctx.fillText('1個ずつビーカーの上に出してタップしよう！', bx + bw / 2, waterTop + waterH * 0.57);
+                ctx.restore();
+            } else if (floatingParticles.length === 0 && fallingMolecules.some(m => m.state === 'waiting') && createdWaterCount === 0) {
+                ctx.save();
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '900 19px "Noto Sans JP", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('ビーカーの上にある分子をタップして', bx + bw / 2, waterTop + waterH * 0.45);
+                ctx.fillText('水の中に入れてみよう！', bx + bw / 2, waterTop + waterH * 0.58);
+                ctx.restore();
+            }
+
+            // 2. BTB溶液のしずくの落下更新
+            for (let i = indicatorDrops.length - 1; i >= 0; i--) {
+                const drop = indicatorDrops[i];
+                drop.y += drop.vy;
+                drop.vy += 0.35;
+
+                ctx.beginPath();
+                ctx.arc(drop.x, drop.y, 9, 0, Math.PI * 2);
+                ctx.fillStyle = drop.color;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                if (drop.y >= waterTop) {
+                    isBTBAdded = true;
+                    splashRipples.push({
+                        x: drop.x,
+                        y: waterTop,
+                        radius: 8,
+                        maxRadius: 45,
+                        color: drop.color,
+                        text: '',
+                        alpha: 0.9
+                    });
+                    indicatorDrops.splice(i, 1);
+                    updateUI();
+                }
+            }
+
+            // 3. 待機中・落下中の分子（電離前）の更新＆描画
+            for (let i = fallingMolecules.length - 1; i >= 0; i--) {
+                const mol = fallingMolecules[i];
+
+                if (mol.state === 'waiting') {
+                    mol.floatPhase += 0.07;
+                } else if (mol.state === 'falling') {
+                    mol.y += mol.vy;
+                    mol.vy += 0.18;
+
+                    if (!mol.enteredWater && mol.y >= waterTop) {
+                        mol.enteredWater = true;
+                        mol.vy *= 0.55;
+                        splashRipples.push({
+                            x: mol.x,
+                            y: waterTop,
+                            radius: 10,
+                            maxRadius: 48,
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            text: '',
+                            alpha: 1.0
+                        });
+                    }
+
+                    if (mol.y >= mol.targetY) {
+                        mol.y = mol.targetY;
+                        mol.state = 'shaking';
+                        mol.shakeTimer = 0;
+                    }
+                } else if (mol.state === 'shaking') {
+                    mol.shakeTimer++;
+                    if (mol.shakeTimer > 18) {
+                        dissociateMolecule(mol);
+                        fallingMolecules.splice(i, 1);
+                        continue;
+                    }
+                }
+
+                drawFallingMolecule(mol);
+            }
+
+            // 4. 電離後の観察タイマーを減らし、時間経過したイオン同士をペアリング
+            let stateChanged = false;
+            floatingParticles.forEach(p => {
+                if (p.spawnWait > 0) {
+                    p.spawnWait--;
+                    if (p.spawnWait === 0) stateChanged = true;
+                }
+            });
+            checkAndPairReactions();
+            if (stateChanged) updateUI();
+
+            // 5. 引き寄せ合っているペアの接続ラインを背面に描画
+            const drawnPairs = new Set();
+            floatingParticles.forEach(p => {
+                if ((p.state === 'attracting_water' || p.state === 'attracting_precip') && p.partner && !drawnPairs.has(p)) {
+                    drawnPairs.add(p);
+                    drawnPairs.add(p.partner);
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([6, 5]);
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.partner.x, p.partner.y);
+                    ctx.lineWidth = 3.5;
+                    ctx.strokeStyle = p.state === 'attracting_water' ? 'rgba(14, 165, 233, 0.85)' : 'rgba(217, 119, 6, 0.85)';
+                    ctx.stroke();
+
+                    // 中間点に小さく「引き寄せ」ラベル
+                    const mx = (p.x + p.partner.x) / 2;
+                    const my = (p.y + p.partner.y) / 2;
+                    ctx.fillStyle = p.state === 'attracting_water' ? '#0369a1' : '#b45309';
+                    ctx.font = '900 11px "Noto Sans JP", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(p.state === 'attracting_water' ? '中和へ' : '結合へ', mx, my - 8);
+                    ctx.restore();
+                }
+            });
+
+            // 6. 水中を漂うイオンの移動・衝突・結合の更新＆描画
+            const leftBound = bx + 20;
+            const rightBound = bx + bw - 20;
+            const topBound = waterTop + 22;
+            const bottomBound = by + bh - 44; // 底に沈殿がたまるスペースを確保
+
+            for (let i = 0; i < floatingParticles.length; i++) {
+                const p = floatingParticles[i];
+                if (p.state === 'merged') continue;
+
+                if (p.scale > 1) {
+                    p.scale = Math.max(1, p.scale - 0.02);
+                }
+
+                // 引き寄せ中のペアはゆっくりお互いに向かって移動する
+                if ((p.state === 'attracting_water' || p.state === 'attracting_precip') && p.partner) {
+                    if (p.partner.state === 'merged') {
+                        p.state = 'free';
+                        p.partner = null;
+                    } else {
+                        const dx = p.partner.x - p.x;
+                        const dy = p.partner.y - p.y;
+                        const dist = Math.hypot(dx, dy);
+
+                        if (dist < 18) {
+                            // 結合完了！
+                            const midX = (p.x + p.partner.x) / 2;
+                            const midY = (p.y + p.partner.y) / 2;
+
+                            if (p.state === 'attracting_water') {
+                                // H+ と OH- が結びついて水(H2O)ができる
+                                createdWaterCount++;
+                                waterMolecules.push({
+                                    x: midX,
+                                    y: midY,
+                                    vx: (Math.random() - 0.5) * 0.8,
+                                    vy: -0.35,
+                                    radius: 26,
+                                    scale: 1.3,
+                                    alpha: 1.0,
+                                    life: 160 // 約2.7秒間表示してから水に溶け込む
+                                });
+                                splashRipples.push({
+                                    x: midX,
+                                    y: midY,
+                                    radius: 10,
+                                    maxRadius: 65,
+                                    color: 'rgba(56, 189, 248, 0.95)',
+                                    text: '水(H₂O)ができた！',
+                                    alpha: 1.0
+                                });
+                            } else if (p.state === 'attracting_precip' && currentPattern.precipInfo) {
+                                // 陽イオンと陰イオンが結びついて白い沈殿ができ、底へ落ちていく
+                                createdPrecipCount++;
+                                // 底に並べる目標X座標を計算
+                                const slotOffset = ((createdPrecipCount - 1) % 5 - 2) * 74 + (Math.random() - 0.5) * 14;
+                                const settleX = Math.max(bx + 50, Math.min(bx + bw - 50, bx + bw / 2 + slotOffset));
+
+                                precipitates.push({
+                                    x: midX,
+                                    y: midY,
+                                    targetX: settleX,
+                                    vy: 0.7, // ゆっくり下に落ちる初速
+                                    formulaText: currentPattern.precipInfo.formulaText,
+                                    settled: false
+                                });
+                                splashRipples.push({
+                                    x: midX,
+                                    y: midY,
+                                    radius: 12,
+                                    maxRadius: 70,
+                                    color: 'rgba(255, 255, 255, 0.95)',
+                                    text: `白い沈殿(${currentPattern.precipInfo.formulaText})！`,
+                                    alpha: 1.0
+                                });
+                            }
+
+                            p.state = 'merged';
+                            p.partner.state = 'merged';
+                            updateUI();
+                            continue;
+                        } else {
+                            // 生徒が目で追えるよう、ゆっくり引き寄せ合う速度（約1.15px/frame）
+                            const attractSpeed = 1.15;
+                            p.vx = (dx / dist) * attractSpeed;
+                            p.vy = (dy / dist) * attractSpeed;
+                        }
+                    }
+                } else {
+                    // 自由遊泳中の速度調整
+                    const speed = Math.hypot(p.vx, p.vy);
+                    const idealSpeed = 1.25;
+                    if (speed > idealSpeed * 1.4) {
+                        p.vx *= 0.94;
+                        p.vy *= 0.94;
+                    } else if (speed < idealSpeed * 0.6) {
+                        p.vx *= 1.05;
+                        p.vy *= 1.05;
+                    }
+                }
+
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // 壁・水面・底面での反射
+                if (p.x - p.radius < leftBound) {
+                    p.x = leftBound + p.radius;
+                    p.vx = Math.abs(p.vx);
+                } else if (p.x + p.radius > rightBound) {
+                    p.x = rightBound - p.radius;
+                    p.vx = -Math.abs(p.vx);
+                }
+
+                if (p.y - p.radius < topBound) {
+                    p.y = topBound + p.radius;
+                    p.vy = Math.abs(p.vy);
+                } else if (p.y + p.radius > bottomBound) {
+                    p.y = bottomBound - p.radius;
+                    p.vy = -Math.abs(p.vy);
+                }
+
+                // 自由遊泳中の粒子同士の軽い反発
+                if (p.state === 'free') {
+                    for (let j = i + 1; j < floatingParticles.length; j++) {
+                        const p2 = floatingParticles[j];
+                        if (p2.state !== 'free') continue;
+                        const dx = p2.x - p.x;
+                        const dy = p2.y - p.y;
+                        const dist = Math.hypot(dx, dy);
+                        const minDist = (p.radius + p2.radius) * 0.92;
+                        if (dist > 0 && dist < minDist) {
+                            const overlap = (minDist - dist) * 0.04;
+                            const nx = dx / dist;
+                            const ny = dy / dist;
+                            p.vx -= nx * overlap;
+                            p.vy -= ny * overlap;
+                            p2.vx += nx * overlap;
+                            p2.vy += ny * overlap;
+                        }
+                    }
+                }
+
+                drawIonSphere(p.x, p.y, p.radius, p.label, p.charge, p.type, p.scale);
+            }
+
+            // 結合済みのイオンを配列から除去
+            if (floatingParticles.some(p => p.state === 'merged')) {
+                floatingParticles = floatingParticles.filter(p => p.state !== 'merged');
+                updateUI();
+            }
+
+            // 7. 中和でできた水分子(H2O)の更新＆描画
+            for (let i = waterMolecules.length - 1; i >= 0; i--) {
+                const wm = waterMolecules[i];
+                wm.x += wm.vx;
+                wm.y += wm.vy;
+                if (wm.scale > 1) wm.scale = Math.max(1, wm.scale - 0.025);
+                wm.life--;
+                if (wm.life < 45) {
+                    wm.alpha = wm.life / 45;
+                }
+                if (wm.life <= 0) {
+                    waterMolecules.splice(i, 1);
+                    continue;
+                }
+                drawWaterMolecule(wm);
+            }
+
+            // 8. 白い沈殿の落下・底への堆積アニメーション
+            const precipFloorY = by + bh - 22;
+            precipitates.forEach(pr => {
+                if (!pr.settled) {
+                    // ゆっくり下に落ちながら目標の横位置へ寄る
+                    pr.y += pr.vy;
+                    pr.vy = Math.min(2.2, pr.vy + 0.025);
+                    pr.x += (pr.targetX - pr.x) * 0.04;
+
+                    if (pr.y >= precipFloorY) {
+                        pr.y = precipFloorY;
+                        pr.vy = 0;
+                        pr.settled = true;
+                    }
+                }
+                drawPrecipitateCrystal(pr);
+            });
+
+            // 9. 波紋・テキストエフェクトの描画
+            for (let i = splashRipples.length - 1; i >= 0; i--) {
+                const rip = splashRipples[i];
+                rip.radius += 2.2;
+                rip.alpha -= 0.026;
+
+                if (rip.alpha <= 0) {
+                    splashRipples.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, rip.alpha);
+                ctx.beginPath();
+                ctx.arc(rip.x, rip.y, rip.radius, 0, Math.PI * 2);
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = rip.color;
+                ctx.stroke();
+
+                if (rip.text) {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = '900 18px "Noto Sans JP", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 4;
+                    ctx.strokeText(rip.text, rip.x, rip.y - rip.radius * 0.45 - 8);
+                    ctx.fillText(rip.text, rip.x, rip.y - rip.radius * 0.45 - 8);
+                }
+                ctx.restore();
+            }
+
+            // 10. ビーカーのガラス外枠と目盛りの描画
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(bx - 8, by);
+            ctx.lineTo(bx, by + 12);
+            ctx.lineTo(bx, by + bh - 24);
+            ctx.quadraticCurveTo(bx, by + bh, bx + 24, by + bh);
+            ctx.lineTo(bx + bw - 24, by + bh);
+            ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw, by + bh - 24);
+            ctx.lineTo(bx + bw, by + 12);
+            ctx.lineTo(bx + bw + 8, by);
+
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#475569';
+            ctx.stroke();
+
+            // 目盛り線
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+            ctx.fillStyle = 'rgba(71, 85, 105, 0.55)';
+            ctx.font = '700 12px "Noto Sans JP", sans-serif';
+            ctx.textAlign = 'right';
+            const marks = ['100mL', '200mL', '300mL'];
+            for (let m = 1; m <= 3; m++) {
+                const my = by + bh - (bh * 0.22 * m);
+                ctx.beginPath();
+                ctx.moveTo(bx + bw - 35, my);
+                ctx.lineTo(bx + bw - 12, my);
+                ctx.stroke();
+                ctx.fillText(marks[m - 1], bx + bw - 40, my + 4);
+            }
+            ctx.restore();
+
+            requestAnimationFrame(animate);
+        }
+
+        /**
+         * イベントリスナーの登録
+         */
+        window.addEventListener('load', () => {
+            initPatternButtons();
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // 初期状態でパターン①を選択
+            selectPattern(REACTION_PATTERNS[0]);
+
+            // キャンバス上の待機分子をタップしたときに水へ落下させる
+            canvas.addEventListener('pointerdown', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                for (let i = fallingMolecules.length - 1; i >= 0; i--) {
+                    const mol = fallingMolecules[i];
+                    if (mol.state === 'waiting') {
+                        const dx = Math.abs(clickX - mol.x);
+                        const dy = Math.abs(clickY - mol.y);
+                        if (dx <= 74 && dy <= 64) {
+                            mol.state = 'falling';
+                            updateUI();
+                            break;
+                        }
+                    }
+                }
+            });
+
+            // カーソルホバー時のポインター表示
+            canvas.addEventListener('pointermove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const moveX = e.clientX - rect.left;
+                const moveY = e.clientY - rect.top;
+                const hoveringWaiting = fallingMolecules.some(mol =>
+                    mol.state === 'waiting' &&
+                    Math.abs(moveX - mol.x) <= 74 &&
+                    Math.abs(moveY - mol.y) <= 64
+                );
+                canvas.style.cursor = hoveringWaiting ? 'pointer' : 'default';
+            });
+
+            // 「酸を1個ビーカーの上に出す」ボタン
+            document.getElementById('btnSpawnAcid').addEventListener('click', () => {
+                const acid = SUBSTANCES[currentPattern.acidKey];
+                spawnWaitingMolecule(acid);
+            });
+
+            // 「アルカリを1個ビーカーの上に出す」ボタン
+            document.getElementById('btnSpawnAlkali').addEventListener('click', () => {
+                const alkali = SUBSTANCES[currentPattern.alkaliKey];
+                spawnWaitingMolecule(alkali);
+            });
+
+            // 電離の式ボックスのタップ表示切り替え
+            document.getElementById('dissociationCard').addEventListener('click', () => {
+                showDissociationEq = !showDissociationEq;
+                updateUI();
+            });
+
+            // 中和の反応式ボックスのタップ表示切り替え
+            document.getElementById('neutralizationCard').addEventListener('click', () => {
+                showNeutralizationEq = !showNeutralizationEq;
+                updateUI();
+            });
+
+            // BTB溶液を加えるボタン
+            document.getElementById('btnBTB').addEventListener('click', () => {
+                indicatorDrops = [];
+                for (let i = 0; i < 3; i++) {
+                    indicatorDrops.push({
+                        x: beakerRect.x + beakerRect.w * 0.5 + (i - 1) * 18,
+                        y: beakerRect.y - 10 - i * 26,
+                        vy: 5.8,
+                        color: '#16a34a'
+                    });
+                }
+            });
+
+            // BTBの色だけ消すボタン
+            document.getElementById('btnClearBTB').addEventListener('click', () => {
+                isBTBAdded = false;
+                indicatorDrops = [];
+                updateUI();
+            });
+
+            // 水だけに戻す（リセット）ボタン
+            document.getElementById('btnResetAll').addEventListener('click', () => {
+                resetBeaker();
+            });
+
+            animate();
+        });
+    </script>
+</body>
+</html>
